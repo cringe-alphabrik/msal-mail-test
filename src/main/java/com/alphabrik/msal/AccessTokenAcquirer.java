@@ -1,5 +1,7 @@
 package com.alphabrik.msal;
 
+import com.alphabrik.msal.model.Message;
+import com.alphabrik.msal.model.MessagesResponse;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
@@ -12,7 +14,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -23,9 +24,10 @@ class AccessTokenAcquirer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccessTokenAcquirer.class);
 
-    private static final HttpClient   HTTP_CLIENT = HttpClient.newBuilder()
-                                                              .build();
-    private static final ObjectMapper MAPPER      = new ObjectMapper();
+    private static final HttpClient   HTTP_CLIENT    = HttpClient.newBuilder()
+                                                                 .build();
+    private static final ObjectMapper MAPPER         = new ObjectMapper();
+    public static final  String       GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0";
 
     static {
         MAPPER.findAndRegisterModules();
@@ -58,15 +60,41 @@ class AccessTokenAcquirer {
         props.setProperty("access_token", token);
         props.setProperty("access_token_expires_on", tokenExpiresOn.toInstant().toString());
 
-        // TODO get messages for account
         final var messages = getMessages(props);
         LOG.info(
             "Messages:\n{}",
             messages.stream()
-                    .map(m -> String.format("%s: %s - %s (%s)", m.internetMessageId, m.from, m.subject, m.receivedDateTime))
+                    .map(m -> String.format(
+                             "%s: %s - %s (%s) %s",
+                             m.id(),
+                             m.from(),
+                             m.subject(),
+                             m.receivedDateTime(),
+                             m.isRead() ? "" : "<*>"
+                         )
+                    )
                     .collect(Collectors.joining("\n\t"))
-        )
-        ;
+        );
+        toggleRead(props, messages.get(0));
+    }
+
+    private static void toggleRead(final Properties properties, final Message msg) throws Exception {
+        final HttpRequest request = HttpRequest.newBuilder()
+                                               .method("PATCH", HttpRequest.BodyPublishers.ofString(String.format("{ isRead: %s}", !msg.isRead())))
+                                               .header("Content-Type", "application/json")
+                                               .header("Authorization", "Bearer " + getOrThrow(properties, "access_token"))
+                                               .header("Accept", "application/json")
+                                               .uri(new URI(String.format("%s/users/%s/messages/%s", GRAPH_BASE_URL, getOrThrow(properties, "account"), msg.id())))
+                                               .build();
+        final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() >= 300) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Request failed: {} {}", response.statusCode(), response.body());
+            }
+            throw new RuntimeException("Can not get messages! " + response.statusCode());
+        }
+        final var body = response.body();
+        LOG.debug("Received: {}", body);
     }
 
     private static List<Message> getMessages(final Properties properties) throws Exception {
@@ -74,7 +102,7 @@ class AccessTokenAcquirer {
                                                .GET()
                                                .header("Authorization", "Bearer " + getOrThrow(properties, "access_token"))
                                                .header("Accept", "application/json")
-                                               .uri(new URI("https://graph.microsoft.com/v1.0" + "/users/" + getOrThrow(properties, "account") + "/messages"))
+                                               .uri(new URI(String.format("%s/users/%s/messages", GRAPH_BASE_URL, getOrThrow(properties, "account"))))
                                                .build();
         final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() >= 300) {
@@ -95,37 +123,5 @@ class AccessTokenAcquirer {
 
     private static String getOrThrow(final Properties props, final String property) throws Exception {
         return getOrThrow(props, property, () -> new IllegalArgumentException(property + " is not set!"));
-    }
-
-    record MessagesResponse(List<Message> value) {
-
-    }
-
-    record Message(
-        String id,
-        String internetMessageId,
-        From from,
-        String subject,
-        String bodyPreview,
-        Instant receivedDateTime
-    ) {
-
-    }
-
-    record From(
-        EmailAddress emailAddress
-    ) {
-
-        @Override
-        public String toString() {
-            return String.format("%s <%s>", emailAddress.name, emailAddress.address);
-        }
-    }
-
-    record EmailAddress(
-        String name,
-        String address
-    ) {
-
     }
 }
