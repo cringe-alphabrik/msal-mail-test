@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
 class MailExample {
@@ -30,13 +31,18 @@ class MailExample {
             System.exit(0);
         }
 
+        final var scanner = new Scanner(System.in);
         switch (args[0]) {
             case "getAttachments" -> {
+                String id;
                 if (args.length != 2) {
                     LOG.warn("Usage: getAttachments <id>");
-                    break;
+                    System.out.println("Please enter the message id to get attachments for:");
+                    id = scanner.nextLine();
+                } else {
+                    id = args[1];
                 }
-                final var attachments = server.getAttachments(args[1]);
+                final var attachments = server.getAttachments(id);
                 if (!attachments.isEmpty()) {
                     if (LOG.isInfoEnabled()) {
                         LOG.info("Attachments:\n\t{}", attachments.stream()
@@ -49,11 +55,15 @@ class MailExample {
                 }
             }
             case "getMessages" -> {
+                boolean read;
                 if (args.length != 2) {
                     LOG.warn("Usage: getMessages <unreadOnly>");
-                    break;
+                    System.out.println("Please enter the new read status (true|false):");
+                    read = scanner.nextBoolean();
+                } else {
+                    read = Boolean.parseBoolean(args[1]);
                 }
-                final var messages = server.getMessages(Boolean.parseBoolean(args[1]));
+                final var messages = server.getMessages(read);
                 if (!messages.isEmpty()) {
                     if (LOG.isInfoEnabled()) {
                         LOG.info("Messages:\n\t{}", messages.stream()
@@ -66,18 +76,29 @@ class MailExample {
                 }
             }
             case "toggleRead" -> {
+                String  id;
+                boolean read;
                 if (args.length != 3) {
                     LOG.warn("Usage: toggleRead <id> <true|false>");
-                    break;
+                    System.out.println("Please enter the message id to toggle read status:");
+                    id = scanner.nextLine();
+                    System.out.println("Please enter the new read status (true|false):");
+                    read = scanner.nextBoolean();
+                } else {
+                    id = args[1];
+                    read = Boolean.parseBoolean(args[2]);
                 }
-                server.toggleRead(args[1], Boolean.parseBoolean(args[2]));
+                server.toggleRead(id, read);
             }
             case "delete" -> {
                 if (args.length != 2) {
                     LOG.warn("Usage: delete <id>");
-                    break;
+                    System.out.println("Please enter the message id to delete:");
+                    final var id      = scanner.nextLine();
+                    server.delete(id);
+                } else {
+                    server.delete(args[1]);
                 }
-                server.delete(args[1]);
             }
             default -> LOG.info("Unknown command! Available commands: getMessages, toggleRead, delete");
         }
