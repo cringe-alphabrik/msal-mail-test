@@ -79,7 +79,22 @@ public class MailServer {
         LOG.debug("Received: {}", responseBody);
     }
 
-    public List<Message> getMessages() throws Exception {
+    public void delete(final String id) throws Exception {
+        final var request = HttpRequest.newBuilder()
+                                       .DELETE()
+                                       .header("Authorization", String.format("Bearer %s", config.getToken()))
+                                       .uri(new URI(String.format("%s/users/%s/messages/%s", config.getBaseUrl(), config.getAccount(), id)))
+                                       .build();
+        final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 204) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Request failed: {} {}", response.statusCode(), response.body());
+            }
+            throw new RuntimeException("Can not delete message " + id + "! " + response.statusCode());
+        }
+    }
+
+    public List<Message> getMessages(final boolean unreadOnly) throws Exception {
         final HttpRequest request = HttpRequest.newBuilder()
                                                .GET()
                                                .header("Authorization", "Bearer " + config.getToken())
