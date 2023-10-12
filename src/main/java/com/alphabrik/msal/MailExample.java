@@ -24,7 +24,9 @@ class MailExample {
     }
 
     public static void main(String[] args) throws Exception {
-        LOG.debug("args: {}", Arrays.toString(args));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("args: {}", Arrays.toString(args));
+        }
 
         final var config = new Configuration(MailExample.class.getResourceAsStream("/application.properties"));
 
