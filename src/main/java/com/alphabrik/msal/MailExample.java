@@ -1,13 +1,26 @@
 package com.alphabrik.msal;
 
+import com.alphabrik.msal.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class MailExample {
 
     private static final Logger LOG = LoggerFactory.getLogger(MailExample.class);
+
+    private static Function<Message, String> formatMessage() {
+        return m -> String.format(
+            "%s: %s - %s (%s) %s",
+            m.id(),
+            m.from(),
+            m.subject(),
+            m.receivedDateTime(),
+            m.isRead() ? "" : "<*>"
+        );
+    }
 
     public static void main(String[] args) throws Exception {
         final var config = new Configuration(MailExample.class.getResourceAsStream("/application.properties"));
@@ -21,19 +34,9 @@ class MailExample {
         final var messages = server.getMessages();
         if (!messages.isEmpty()) {
             if (LOG.isInfoEnabled()) {
-                LOG.info(
-                    "Messages:\n{}",
-                    messages.stream()
-                            .map(m -> String.format(
-                                     "%s: %s - %s (%s) %s",
-                                     m.id(),
-                                     m.from(),
-                                     m.subject(),
-                                     m.receivedDateTime(),
-                                     m.isRead() ? "" : "<*>"
-                                 )
-                            )
-                            .collect(Collectors.joining("\n\t"))
+                LOG.info("Messages:\n{}", messages.stream()
+                                                  .map(formatMessage())
+                                                  .collect(Collectors.joining("\n\t"))
                 );
             }
             final var msg = messages.get(0);
