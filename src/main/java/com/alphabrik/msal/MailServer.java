@@ -99,7 +99,12 @@ public class MailServer {
                                                .GET()
                                                .header("Authorization", "Bearer " + config.getToken())
                                                .header("Accept", APPLICATION_JSON)
-                                               .uri(new URI(String.format("%s/users/%s/messages", config.getBaseUrl(), config.getAccount())))
+                                               .uri(new URI(String.format(
+                                                   "%s/users/%s/messages?%s",
+                                                   config.getBaseUrl(),
+                                                   config.getAccount(),
+                                                   unreadOnly ? "$filter=isRead%20eq%20false" : ""
+                                               )))
                                                .build();
         final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() >= 300) {
