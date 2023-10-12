@@ -1,8 +1,12 @@
 package com.alphabrik.msal.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.Instant;
 
 public record Attachment(
+    @JsonProperty("@odata.type")
+    String type,
     String id,
     String name,
     String contentType,
@@ -14,6 +18,7 @@ public record Attachment(
     public String toString() {
         return "Attachment{" +
                "id='" + id + '\'' +
+               ", type='" + type + '\'' +
                ", name='" + name + '\'' +
                ", contentType='" + contentType + '\'' +
                ", contentBytes=[" + shorten(25) + "]" +
