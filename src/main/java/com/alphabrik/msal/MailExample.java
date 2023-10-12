@@ -1,27 +1,16 @@
 package com.alphabrik.msal;
 
+import com.alphabrik.msal.model.Attachment;
 import com.alphabrik.msal.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class MailExample {
 
     private static final Logger LOG = LoggerFactory.getLogger(MailExample.class);
-
-    private static Function<Message, String> formatMessage() {
-        return m -> String.format(
-            "%s: %s - %s (%s) %s",
-            m.id(),
-            m.from(),
-            m.subject(),
-            m.receivedDateTime(),
-            m.isRead() ? "" : "<*>"
-        );
-    }
 
     public static void main(String[] args) throws Exception {
         if (LOG.isDebugEnabled()) {
@@ -42,6 +31,23 @@ class MailExample {
         }
 
         switch (args[0]) {
+            case "getAttachments" -> {
+                if (args.length != 2) {
+                    LOG.warn("Usage: getAttachments <id>");
+                    break;
+                }
+                final var attachments = server.getAttachments(args[1]);
+                if (!attachments.isEmpty()) {
+                    if (LOG.isInfoEnabled()) {
+                        LOG.info("Attachments:\n\t{}", attachments.stream()
+                                                                  .map(Attachment::toString)
+                                                                  .collect(Collectors.joining("\n\t"))
+                        );
+                    }
+                } else {
+                    LOG.info("No attachments found!");
+                }
+            }
             case "getMessages" -> {
                 if (args.length != 2) {
                     LOG.warn("Usage: getMessages <unreadOnly>");
@@ -51,8 +57,8 @@ class MailExample {
                 if (!messages.isEmpty()) {
                     if (LOG.isInfoEnabled()) {
                         LOG.info("Messages:\n\t{}", messages.stream()
-                                                          .map(formatMessage())
-                                                          .collect(Collectors.joining("\n\t"))
+                                                            .map(Message::toString)
+                                                            .collect(Collectors.joining("\n\t"))
                         );
                     }
                 } else {

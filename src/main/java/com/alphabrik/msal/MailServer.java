@@ -1,5 +1,7 @@
 package com.alphabrik.msal;
 
+import com.alphabrik.msal.model.Attachment;
+import com.alphabrik.msal.model.AttachmentsResponse;
 import com.alphabrik.msal.model.Message;
 import com.alphabrik.msal.model.MessagesResponse;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -71,7 +73,7 @@ public class MailServer {
                                                                         .build();
             final var result = app.acquireToken(clientCredentialParam).get();
             final var token  = result.accessToken();
-            LOG.info("Token: {}", token);
+            LOG.debug("Token received: {}", token);
             config.setAccessToken(token);
             return true;
         } catch (final Exception e) {
@@ -93,7 +95,7 @@ public class MailServer {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Request failed: {} {}", response.statusCode(), response.body());
             }
-            throw new RuntimeException("Can not get messages! " + response.statusCode());
+            throw new RuntimeException("Can not toggle read! " + response.statusCode());
         }
         final var responseBody = response.body();
         LOG.debug("Received: {}", responseBody);
@@ -114,20 +116,46 @@ public class MailServer {
         }
     }
 
+    public List<Attachment> getAttachments(final String id) throws Exception {
+        final var request = HttpRequest.newBuilder()
+                                       .GET()
+                                       .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
+                                       .header(Headers.ACCEPT.value, MimeTypes.APPLICATION_JSON.value)
+                                       .uri(new URI(String.format(
+                                           "%s/users/%s/messages/%s/attachments",
+                                           config.getBaseUrl(),
+                                           config.getAccount(),
+                                           id
+                                           // TODO $select but with contentBytes!
+                                       )))
+                                       .build();
+
+        final var response     = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        final var responseBody = response.body();
+        if (response.statusCode() < 200 || response.statusCode() >= 400) {
+            LOG.warn("Request failed: {} {}", response.statusCode(), responseBody);
+            throw new RuntimeException("Can not get attachments! " + response.statusCode());
+        }
+        LOG.debug("Received: {}", responseBody);
+        return MAPPER.readValue(responseBody, AttachmentsResponse.class).value();
+    }
+
     public List<Message> getMessages(final boolean unreadOnly) throws Exception {
-        final HttpRequest request = HttpRequest.newBuilder()
-                                               .GET()
-                                               .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
-                                               .header(Headers.ACCEPT.value, MimeTypes.APPLICATION_JSON.value)
-                                               .uri(new URI(String.format(
-                                                   "%s/users/%s/messages?%s",
-                                                   config.getBaseUrl(),
-                                                   config.getAccount(),
-                                                   unreadOnly ? "$filter=isRead%20eq%20false" : ""
-                                               )))
-                                               .build();
+        final var request = HttpRequest.newBuilder()
+                                       .GET()
+                                       .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
+                                       .header(Headers.ACCEPT.value, MimeTypes.APPLICATION_JSON.value)
+                                       .uri(new URI(String.format(
+                                           "%s/users/%s/messages?%s&%s&%s",
+                                           config.getBaseUrl(),
+                                           config.getAccount(),
+                                           "$select=subject,from,isRead,sentDateTime,receivedDateTime,hasAttachments",
+                                           unreadOnly ? "$filter=isRead%20eq%20false" : "",
+                                           "$orderby=receivedDateTime%20desc"
+                                       )))
+                                       .build();
         final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() >= 300) {
+        if (response.statusCode() < 200 || response.statusCode() >= 400) {
             throw new RuntimeException("Can not get messages! " + response.statusCode());
         }
         final var responseBody = response.body();

@@ -5,4 +5,8 @@ record EmailAddress(
     String address
 ) {
 
+    @Override
+    public String toString() {
+        return name + " <" + address + ">";
+    }
 }

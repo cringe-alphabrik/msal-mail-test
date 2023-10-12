@@ -4,12 +4,19 @@ import java.time.Instant;
 
 public record Message(
     String id,
-    String internetMessageId,
     From from,
     String subject,
-    String bodyPreview,
+    Instant sentDateTime,
     Instant receivedDateTime,
-    boolean isRead
+    boolean isRead,
+    boolean hasAttachments
 ) {
 
+    @Override
+    public String toString() {
+        return id +
+               " from:" + from +
+               " received:" + receivedDateTime +
+               " read:" + isRead;
+    }
 }
