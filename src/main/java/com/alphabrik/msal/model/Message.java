@@ -16,6 +16,7 @@ public record Message(
     public String toString() {
         return id +
                " from:" + from +
+               " subject:" + subject +
                " received:" + receivedDateTime +
                " read:" + isRead;
     }
