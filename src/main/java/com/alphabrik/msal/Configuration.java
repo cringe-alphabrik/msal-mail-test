@@ -23,7 +23,10 @@ public class Configuration {
     }
 
     private String getOrThrow(final String property, final Supplier<Exception> exceptionSupplier) throws Exception {
-        if (props.containsKey(property)) {
+        // first check environment, then properties, then throw exception
+        if (System.getenv().containsKey(property)) {
+            return System.getenv(property);
+        } else if (props.containsKey(property)) {
             return props.getProperty(property);
         } else {
             throw exceptionSupplier.get();
