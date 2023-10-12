@@ -73,7 +73,7 @@ class MailExample {
                 }
                 server.delete(args[1]);
             }
-            default -> LOG.info("Unknown command!");
+            default -> LOG.info("Unknown command! Available commands: getMessages, toggleRead, delete");
         }
     }
 }
