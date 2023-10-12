@@ -21,13 +21,33 @@ public class MailServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(MailServer.class);
 
-    private static final HttpClient   HTTP_CLIENT      = HttpClient.newBuilder()
-                                                                   .build();
-    private static final ObjectMapper MAPPER           = new ObjectMapper();
-    public static final  String       APPLICATION_JSON = "application/json";
+    private static final HttpClient   HTTP_CLIENT = HttpClient.newBuilder()
+                                                              .build();
+    private static final ObjectMapper MAPPER      = new ObjectMapper();
 
-    private final Configuration                 config;
-    private       ConfidentialClientApplication app;
+    private enum MimeTypes {
+        APPLICATION_JSON("application/json");
+
+        public final String value;
+
+        MimeTypes(String value) {
+            this.value = value;
+        }
+    }
+
+    private enum Headers {
+        CONTENT_TYPE("Content-Type"),
+        AUTHORIZATION("Authorization"),
+        ACCEPT("Accept");
+
+        public final String value;
+
+        Headers(String value) {
+            this.value = value;
+        }
+    }
+
+    private final Configuration config;
 
     public MailServer(final Configuration config) {
         this.config = config;
@@ -38,12 +58,12 @@ public class MailServer {
 
     public boolean connect() {
         try {
-            app = ConfidentialClientApplication.builder(
-                                                   config.getClientId(),
-                                                   ClientCredentialFactory.createFromSecret(config.getClientSecret())
-                                               )
-                                               .authority(String.format("%s/%s", config.getAuthority(), config.getTenant()))
-                                               .build();
+            final var app = ConfidentialClientApplication.builder(
+                                                             config.getClientId(),
+                                                             ClientCredentialFactory.createFromSecret(config.getClientSecret())
+                                                         )
+                                                         .authority(String.format("%s/%s", config.getAuthority(), config.getTenant()))
+                                                         .build();
 
             final var clientCredentialParam = ClientCredentialParameters.builder(
                                                                             Collections.singleton("https://graph.microsoft.com/.default")
@@ -63,9 +83,9 @@ public class MailServer {
     public void toggleRead(final String id, final boolean read) throws Exception {
         final var request = HttpRequest.newBuilder()
                                        .method("PATCH", HttpRequest.BodyPublishers.ofString(String.format("{%s: %s}", "isRead", read)))
-                                       .header("Content-Type", APPLICATION_JSON)
-                                       .header("Authorization", String.format("Bearer %s", config.getToken()))
-                                       .header("Accept", APPLICATION_JSON)
+                                       .header(Headers.CONTENT_TYPE.value, MimeTypes.APPLICATION_JSON.value)
+                                       .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
+                                       .header(Headers.ACCEPT.value, MimeTypes.APPLICATION_JSON.value)
                                        .uri(new URI(String.format("%s/users/%s/messages/%s", config.getBaseUrl(), config.getAccount(), id)))
                                        .build();
         final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
@@ -82,7 +102,7 @@ public class MailServer {
     public void delete(final String id) throws Exception {
         final var request = HttpRequest.newBuilder()
                                        .DELETE()
-                                       .header("Authorization", String.format("Bearer %s", config.getToken()))
+                                       .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
                                        .uri(new URI(String.format("%s/users/%s/messages/%s", config.getBaseUrl(), config.getAccount(), id)))
                                        .build();
         final var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
@@ -97,8 +117,8 @@ public class MailServer {
     public List<Message> getMessages(final boolean unreadOnly) throws Exception {
         final HttpRequest request = HttpRequest.newBuilder()
                                                .GET()
-                                               .header("Authorization", "Bearer " + config.getToken())
-                                               .header("Accept", APPLICATION_JSON)
+                                               .header(Headers.AUTHORIZATION.value, String.format("Bearer %s", config.getToken()))
+                                               .header(Headers.ACCEPT.value, MimeTypes.APPLICATION_JSON.value)
                                                .uri(new URI(String.format(
                                                    "%s/users/%s/messages?%s",
                                                    config.getBaseUrl(),
